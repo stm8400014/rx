@@ -1,18 +1,39 @@
-# @creationix/rx
+# RX
 
 [![rx tests](https://github.com/creationix/rx/actions/workflows/rx-test.yml/badge.svg)](https://github.com/creationix/rx/actions/workflows/rx-test.yml)
 
-REXC encoder, decoder, and data tool. Drop-in replacements for `JSON.stringify` and `JSON.parse` that produce smaller output, skip deserialization on read, and create near-zero heap allocations.
+RX is a read-only embedded store for JSON-shaped data. Encode once, then query the encoded document in place — no parsing, no object graph, no GC pressure. Think of it as no-SQL SQLite: unstructured data with database-style random access.
 
-## Why
+On a real 92 MB deployment manifest with 35,000 route keys:
 
-JSON forces a tradeoff: parse everything up front (slow, memory-heavy) or don't cache at all. REXC eliminates the tradeoff:
+| | JSON | RX |
+|---|------|-----|
+| Size | 92 MB | 5.1 MB |
+| Look up one route | 69 ms (full parse) | 0.003 ms (direct read) |
+| Heap allocations | 2,598,384 | 1 |
 
-- **18x smaller** — binary-encoded numbers, de-duplicated strings, shared schemas, prefix-compressed paths.
-- **23,000x faster single-key lookup** — O(log n) binary search on sorted indexes, directly on the encoded bytes. No parse step.
-- **Near-zero heap pressure** — the parsed result is a Proxy over a flat byte buffer. The GC doesn't trace its contents.
+## When to use RX
 
-Benchmarked on a real production dataset: a 35,000-key website deployment manifest.
+RX sits in a specific gap: your data is too large for JSON's parse-everything model, but too unstructured for SQLite or Protobuf.
+
+Good fits:
+- Build manifests, route tables, deployment artifacts — written once, read sparsely
+- Embedded datasets in browsers, edge runtimes, or worker processes
+- Any workflow where full-document parsing is the bottleneck
+
+Bad fits:
+- Small documents where JSON parsing is already cheap
+- Human-authored config files
+- Write-heavy or mutable data (use a real database)
+- Minimizing compressed transfer size (gzip/zstd will beat RX)
+- Data that maps cleanly to tables (use SQLite) or a fixed schema (use Protobuf)
+
+## Typical workflow
+
+1. A build or deploy step produces a large JSON-shaped artifact.
+2. Encode it to RX once.
+3. Runtimes read only the values they need — O(1) array access, O(log n) object key lookup.
+4. When debugging at 3 AM, copy-paste the RX text into [rx.run](https://rx.run/) to inspect it. No binary tooling needed.
 
 ## Install
 
@@ -22,236 +43,211 @@ npm install -g @creationix/rx  # CLI (global)
 npx @creationix/rx data.rx     # CLI (one-off)
 ```
 
-## Quick Start
+## Quick start
 
-### Encoding (drop-in for `JSON.stringify`)
+### Encode
 
 ```ts
 import { stringify } from "@creationix/rx";
 
-const payload = stringify({ users: ["alice", "bob"], version: 3 });
-// Returns a string — store it anywhere you'd store JSON
+const rx = stringify({ users: ["alice", "bob"], version: 3 });
+// Returns a string — store it anywhere you'd store JSON text
 ```
 
-### Decoding (drop-in for `JSON.parse`)
+### Decode
 
 ```ts
 import { parse } from "@creationix/rx";
 
-const data = parse(payload) as any;
-data.users[0]         // "alice"
+const data = parse(rx) as any;
+data.users[0]         // "alice"  — no parse, direct buffer read
 data.version          // 3
 Object.keys(data)     // ["users", "version"]
 JSON.stringify(data)  // works — full JS interop
 ```
 
-The returned value supports property access, `Object.keys()`, `Object.entries()`, `for...of`, `for...in`, `Array.isArray()`, `.map()`, `.filter()`, `.find()`, `.reduce()`, spread, destructuring, and `JSON.stringify()`. Existing code that consumes the parsed result doesn't need to change.
+The returned value is a read-only Proxy. It supports property access, `Object.keys()`, `Object.entries()`, `for...of`, `for...in`, `Array.isArray()`, `.map()`, `.filter()`, `.find()`, `.reduce()`, spread, destructuring, and `JSON.stringify()`. Existing read paths usually work unchanged.
 
-## CLI Usage
+### Uint8Array API
 
-```sh
-rx data.rx                         # pretty-print as tree
-rx data.rx -j                      # convert to JSON
-rx data.json -r                    # convert to REXC
-cat data.rx | rx                   # read from stdin (auto-detect)
-rx data.rx -s key 0 sub            # select a sub-value
-rx data.rx -o out.json             # write to file
-```
-
-See [CLI Reference](#cli-reference) below for full options.
-
-**Tip:** Add a shell function for quick paged, colorized viewing that works on both `.json` and `.rx` files.  To install paste this into your shell profile. 
-
-```sh
-p() { rx "$1" -t -c | less -RFX; }
-# p data.rx          — pretty-print with color, auto-pages large output
-```
-
-There is also a web-based viewer in development for inspecting REXC documents with expandable tree navigation, syntax-highlighted node types, and tabs for raw REXC, JSON, and ref dictionaries:
-
-![REXC Viewer — interactive tree inspector showing a website deployment manifest with chain-compressed paths, pointer deduplication, and nested object metadata](rexc-viewer-screenshot.png)
-
-### Binary API
-
-For performance-critical paths or when working with `Uint8Array` buffers directly:
+For performance-critical paths, skip the string conversion:
 
 ```ts
 import { encode, decode, open } from "@creationix/rx";
 
-// encode returns Uint8Array (no string conversion)
 const buf = encode({ path: "/api/users", status: 200 });
-
-// decode/open take Uint8Array, return Proxy-wrapped value
 const data = open(buf) as any;
 data.path    // "/api/users"
 data.status  // 200
 ```
 
-## Encoding Options
+`stringify`/`parse` work with strings. `encode`/`open` work with `Uint8Array`. Same options, same Proxy behavior.
+
+### A more realistic example
+
+The quick start above is tiny — JSON would be fine for it. RX pays off on larger data with sparse reads. Here's a site manifest (see [samples/](samples/) for full files):
+
+```jsonc
+// site-manifest.json — 15 routes, repeated structure, shared prefixes
+{
+  "routes": {
+    "/": { "title": "Home", "component": "LandingPage", "auth": false },
+    "/docs": { "title": "Documentation", "component": "DocsIndex", "auth": false },
+    "/docs/getting-started": { "title": "Getting Started", "component": "DocsPage", "auth": false },
+    "/dashboard": { "title": "Dashboard", "component": "Dashboard", "auth": true },
+    "/dashboard/projects": { "title": "Projects", "component": "ProjectList", "auth": true },
+    // ... 10 more routes
+  }
+}
+```
 
 ```ts
-import { stringify, encode } from "@creationix/rx";
+import { readFileSync } from "fs";
+import { parse } from "@creationix/rx";
 
-// Add sorted indexes to containers with >= 10 entries (enables O(log n) key lookup)
-stringify(data, { indexes: 10 });
+// The RX file is already smaller on disk (shared schemas, deduplicated
+// component names, chain-compressed "/docs/..." and "/dashboard/..." prefixes).
+// But the real win is at read time:
 
-// Always index, even small containers
-stringify(data, { indexes: 0 });
+const manifest = parse(readFileSync("site-manifest.rx", "utf-8")) as any;
+const route = manifest.routes["/dashboard/projects"];
+route.title      // "Projects"
+route.component  // "ProjectList"
+route.auth       // true
+// Only these three values were decoded. Everything else was skipped.
+```
 
-// Disable indexes entirely
-stringify(data, { indexes: false });
+Scale this to 35,000 routes and the difference is 69 ms vs 0.003 ms per lookup.
 
-// External refs — shared dictionary of known values
-const refs = { R: ["/api/users", "/api/teams"] };
-stringify(data, { refs });
+The [samples/](samples/) directory has four datasets showing different access patterns — route manifests, RPG game state, emoji metadata, and sensor telemetry. Start with `site-manifest` and `quest-log` if you're evaluating the format.
 
-// Streaming — receive chunks as they're produced
+## Encoding options
+
+```ts
 stringify(data, {
+  // Add sorted indexes to containers with >= N entries (enables O(log n) lookup)
+  indexes: 10,       // default threshold; use 0 for all, false to disable
+
+  // External refs — shared dictionary of known values
+  refs: { R: ["/api/users", "/api/teams"] },
+
+  // Streaming — receive chunks as they're produced
   onChunk: (chunk, offset) => process.stdout.write(chunk),
 });
 ```
 
-Both `stringify` and `encode` accept the same options. `stringify` returns a string; `encode` returns a `Uint8Array`.
-
-## Decoding with Refs
-
 If the encoder used external refs, pass the same dictionary to the decoder:
 
 ```ts
-const refs = { R: ["/api/users", "/api/teams"] };
-const data = parse(payload, { refs });
+const data = parse(payload, { refs: { R: ["/api/users", "/api/teams"] } });
 ```
 
-Ref values are returned as-is — they can be strings, numbers, objects, arrays, or even functions and symbols.
+## CLI
 
-## Proxy Behavior
-
-The Proxy returned by `parse`/`decode`/`open` is read-only and behaves like a frozen JS object:
-
-```ts
-const obj = parse(payload) as any;
-
-obj.newKey = 1;     // throws TypeError("rexc data is read-only")
-delete obj.key;     // throws TypeError("rexc data is read-only")
-
-"key" in obj;       // works (uses zero-alloc key search)
+```sh
+rx data.rx                         # pretty-print as tree
+rx data.rx -j                      # convert to JSON
+rx data.json -r                    # convert to RX
+cat data.rx | rx                   # read from stdin (auto-detect)
+rx data.rx -s key 0 sub            # select a sub-value
+rx data.rx -o out.json             # write to file
+rx data.rx --ast                   # output encoding structure as JSON
 ```
 
-Containers are memoized — repeated access to the same property returns the same Proxy instance:
+**Tip:** Add a shell function for quick paged, colorized viewing:
 
-```ts
-obj.nested === obj.nested  // true
+```sh
+p() { rx "$1" -t -c | less -RFX; }
 ```
 
-### Escape hatch to raw data
+### Full CLI reference
 
-```ts
-import { handle } from "@creationix/rx";
+| Flag | Description |
+|------|-------------|
+| `<file>` | Input file (format auto-detected by contents) |
+| `-` | Read from stdin explicitly |
+| `-j`, `--json` | Output as JSON |
+| `-r`, `--rexc` | Output as RX |
+| `-t`, `--tree` | Output as tree (default on TTY) |
+| `-a`, `--ast` | Output encoding structure |
+| `-s`, `--select <seg>...` | Select a sub-value |
+| `-w`, `--write` | Write converted file (`.json`↔`.rx`) |
+| `-o`, `--out <path>` | Write to file instead of stdout |
+| `-c`, `--color` / `--no-color` | Force or disable ANSI color |
+| `--index-threshold <n>` | Index containers above n values (default: 16) |
+| `--string-chain-threshold <n>` | Split strings longer than n into chains (default: 64) |
+| `--string-chain-delimiter <s>` | Delimiter for string chains (default: `/`) |
+| `--key-complexity-threshold <n>` | Max object complexity for dedupe keys (default: 100) |
 
-const h = handle(obj.nested);
-// h.data: Uint8Array — the underlying buffer
-// h.right: number — byte offset of this node
+Shell completions:
+
+```sh
+rx --completions setup [zsh|bash]
 ```
+
+## Format
+
+RX is a text encoding — not human-readable like JSON, but safe to copy-paste, embed in strings, and move through tools that choke on binary.
+
+Every value is read right-to-left. The parser scans left past base64 digits to find a **tag** character, then uses the tag to interpret any **body** bytes further left:
+
+```
+[body][tag][b64 varint]
+            ◄── read this way ──
+```
+
+*Railroad diagram coming soon — see [format spec](docs/rx-format.md) for all diagrams.*
+
+| JSON | RX | What you're reading |
+|------|----|---------------------|
+| `42` | `+1k` | tag `+` (integer), b64 `1k` = 84, zigzag → 42 |
+| `"hi"` | `hi,2` | tag `,` (string), b64 `2` = byte length, body `hi` to the left |
+| `true` | `'t` | tag `'` (ref), name `t` → built-in literal |
+| `[1,2,3]` | `+6+4+2;6` | tag `;` (array), b64 `6` = content size, three children to the left |
+| `{"a":1,"b":2}` | `+4b,1+2a,1:a` | tag `:` (object), b64 `a` = content size, interleaved keys/values |
+
+Tags: `+` integer, `*` decimal, `,` string, `'` ref/literal, `:` object, `;` array, `^` pointer, `.` chain, `#` index.
+
+The encoder automatically deduplicates values, shares object schemas, compresses shared string prefixes, and adds sorted indexes. See the [format spec](docs/rx-format.md) for the full grammar, railroad diagrams, and a walkthrough of how a complete object is encoded byte by byte.
+
+![RX Viewer — interactive tree inspector](rexc-viewer-screenshot.png)
+
+To inspect real data, paste RX or JSON into the live viewer at [rx.run](https://rx.run/).
 
 ## Inspect API
 
-The `inspect()` function returns a lazy AST that maps 1:1 to the REXC byte encoding. Each node corresponds to exactly one tag+b64 pair in the byte stream — pointers stay as pointers, chains stay as chains, `null` is a ref named `"n"`, etc.
+`inspect()` returns a lazy AST that maps 1:1 to the byte encoding — pointers stay as pointers, chains as chains, indexes as indexes:
 
 ```ts
 import { encode, inspect } from "@creationix/rx";
 
 const buf = encode({ name: "alice", scores: [10, 20, 30] });
 const root = inspect(buf);
-```
 
-### Node properties
-
-Each node exposes the raw encoding structure:
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `tag` | `string` | Single-character tag: `+` `*` `,` `'` `:` `;` `^` `.` `#` |
-| `b64` | `number \| string \| {count, width}` | Decoded b64 payload (signed/unsigned/string/compound) |
-| `left` | `number` | Byte offset of the tag byte |
-| `right` | `number` | Byte offset after the node |
-| `size` | `number` | Byte length of content preceding the tag |
-| `data` | `Uint8Array` | Backing buffer (non-enumerable) |
-| `value` | `unknown` | Resolved JS value via `open()` — lazy |
-
-### Array-like children
-
-Each node acts like an array of its structural children:
-
-```ts
-root.tag       // ":"
-root[0].tag    // "," (first child — a string key)
-root[0].value  // "name"
-root.length    // 4 (key, value, key, value)
+root.tag          // ":"
+root[0].tag       // "," (a string key)
+root[0].value     // "name"
+root.length       // 4 (key, value, key, value)
 
 for (const child of root) {
   console.log(child.tag, child.b64);
 }
-
-JSON.stringify(root)  // recursive tree of {tag, b64, left, right, size, children}
 ```
 
-Children are parsed lazily and cached incrementally — accessing `node[5]` only parses children 0–5. Subsequent access to `node[2]` is instant from cache.
+Each node exposes: `tag`, `b64`, `left`, `right`, `size`, `data`, and `value` (lazy). Nodes with children (`:`, `;`, `.`, `*`, `#`) are iterable and support indexed access. Children are parsed lazily and cached.
 
-Tags with parseable children: `:` (object), `;` (array), `.` (chain), `*` (decimal), `#` (index).
-All other tags (`,` `+` `'` `^`) have zero children regardless of `size`.
-
-### Structural vs semantic
-
-The children array is purely structural — it yields whatever is in the bytes, in read order (right-to-left). For objects, this includes interleaved key/value nodes, `#` index nodes, and schema ref/pointer nodes as peers.
-
-For semantic access, use the utility methods:
+Semantic helpers for object nodes:
 
 ```ts
-// Object utilities — return ASTNodes, not resolved values
-for (const key of root.keys()) { ... }
-for (const val of root.values()) { ... }
-for (const [key, val] of root.entries()) {
-  console.log(key.value, val.value);
-}
-
-// Prefix search — O(log n + m) on indexed objects
-for (const [key, val] of root.filteredKeys("/api/")) { ... }
-
-// Indexed access — O(1) on indexed containers
-const node = root.index("name");   // object key lookup
+for (const [key, val] of root.entries()) { ... }
+for (const [key, val] of root.filteredKeys("/api/")) { ... }  // O(log n + m) on indexed objects
+const node = root.index("name");   // key lookup
 const elem = root.index(2);        // array index
 ```
 
-These methods understand schemas, use binary search on indexed containers, and skip metadata nodes.
+## Low-level cursor API
 
-### CLI
-
-```sh
-rx data.rexc --ast            # output the encoding structure as JSON
-rx data.json --ast            # encode to rexc first, then inspect
-echo '{"x":1}' | rx --ast    # from stdin
-```
-
-## Base64 Utilities
-
-A compact base64 number encoding used internally by the REXC format, exported from the main module:
-
-```ts
-import { b64Stringify, b64Parse, b64Sizeof, toZigZag, fromZigZag } from "@creationix/rx";
-
-b64Stringify(255)  // "3V"
-b64Parse("3V")     // 255
-b64Sizeof(255)     // 2 (digits needed)
-
-toZigZag(-1)    // 1 (signed → unsigned)
-fromZigZag(1)   // -1 (unsigned → signed)
-```
-
-The alphabet is `0-9a-zA-Z-_` (URL-safe, no padding). Numbers are big-endian with zero represented as an empty string. Zigzag encoding maps signed integers to unsigned values so negative numbers stay compact.
-
-## Low-Level Cursor API
-
-For zero-allocation traversal, streaming output, or byte-slicing passthrough, use the cursor API directly. The cursor is a mutable struct that the parser fills in — no objects are created per node visited.
+For zero-allocation traversal — no Proxy, no objects created per node:
 
 ```ts
 import {
@@ -262,184 +258,105 @@ import {
 } from "@creationix/rx";
 ```
 
-### Basics
+### Reading nodes
 
 ```ts
-const c = makeCursor(data);  // one allocation, c.right = data.length
-read(c);                     // parse root node
-// c.tag, c.left, c.right, c.val, c.ixWidth, c.ixCount, c.schema
+const c = makeCursor(data);   // one allocation, reused for everything
+read(c);                      // parse root node — always zero-alloc
+
+// c.tag:  "int" | "float" | "str" | "true" | "false" | "null" | "array" | "object" | "ptr" | "chain"
+// c.left: start offset    c.right: end offset    c.val: tag-dependent value
 ```
-
-`read()` is always zero-alloc. It classifies the node and sets cursor fields:
-
-| Tag | `val` | Notes |
-|-----|-------|-------|
-| `"int"` | signed integer | zigzag decoded |
-| `"float"` | float value | includes `Infinity`, `-Infinity`, `NaN` |
-| `"str"` | byte length | raw UTF-8 at `data[left..left+val)` |
-| `"true"` / `"false"` / `"null"` / `"undef"` | — | tag says it all |
-| `"array"` / `"object"` | content boundary | iterate children below `val` |
-| `"ptr"` | target offset | resolve: `c.right = c.val; read(c)` |
-| `"chain"` | content boundary | concatenated string segments |
 
 ### Iterating containers
 
 ```ts
-// After read() returned "array" or "object":
+// After read() returns "array" or "object":
 const end = c.left;
 let right = c.val;
 while (right > end) {
   c.right = right;
   read(c);
-  // process c.tag, c.val, etc.
+  // process node
   right = c.left;
 }
 ```
 
-For objects without a schema, children alternate: key, value, key, value (in iteration order).
-
-### Random access
-
-```ts
-// Indexed containers: O(1) access via index table
-seekChild(child, container, index);
-
-// Non-indexed: collect boundaries, then access by index
-const offsets: number[] = [];
-const count = collectChildren(container, offsets);
-c.right = offsets[i];
-read(c);
-```
-
-### String operations
-
-All comparison functions take pre-encoded UTF-8 bytes for zero-alloc repeated use:
-
-```ts
-const key = prepareKey("myKey");     // encode once
-
-strEquals(c, key);        // exact match, zero-alloc
-strCompare(c, key);       // ordering (<0, 0, >0), zero-alloc
-strHasPrefix(c, key);     // prefix check, zero-alloc
-
-readStr(c);               // decode to JS string (1 allocation)
-resolveStr(c);            // follow pointers/chains, then decode
-```
-
-`findKey` accepts either a string or pre-encoded bytes — it calls `prepareKey` internally when given a string:
-
-```ts
-findKey(c, container, "myKey");           // convenient
-findKey(c, container, prepareKey("myKey")); // pre-encoded for hot loops
-```
-
-### Object key lookup
+### Key lookup and random access
 
 ```ts
 const v = makeCursor(data);
-if (findKey(v, container, "key")) {
-  // v now points at the value node
-  // Works on inline keys, schema objects, pointer keys, and chain keys
-  // O(log n) on sorted+indexed objects, O(n) linear scan otherwise
+if (findKey(v, container, "myKey")) {
+  // v points at the value — O(log n) on indexed objects, O(n) otherwise
 }
-```
 
-### Prefix search
+seekChild(c, container, 5);    // O(1) indexed array access
 
-```ts
 findByPrefix(c, container, "/api/", (key, value) => {
   console.log(resolveStr(key), value.val);
   // return false to stop early
 });
-// O(log n + m) on indexed objects, O(n) on non-indexed
 ```
 
-### Raw bytes
+### String operations
 
 ```ts
-rawBytes(c)  // zero-copy Uint8Array view: data.subarray(c.left, c.right)
+const key = prepareKey("myKey");   // encode once, compare many times
+strEquals(c, key);                 // zero-alloc exact match
+strCompare(c, key);                // zero-alloc ordering
+strHasPrefix(c, key);              // zero-alloc prefix check
+readStr(c);                        // decode to JS string (1 allocation)
 ```
 
 ### Allocation summary
 
 | Operation | Allocations |
 |-----------|-------------|
-| `makeCursor()` | 1 object (reused) |
-| `read()` | 0 (always) |
-| `readStr()` | 1 string |
-| `strEquals()` / `strCompare()` / `strHasPrefix()` | 0 |
-| `findKey()` | 0 |
-| `seekChild()` | 0 |
-| `collectChildren()` | 0 (fills caller-owned array) |
-| `rawBytes()` | 0 (subarray view) |
+| `makeCursor` | 1 (reused) |
+| `read`, `findKey`, `seekChild`, `strEquals`, `strCompare`, `strHasPrefix`, `collectChildren`, `rawBytes` | 0 |
+| `readStr` | 1 string |
 
-## CLI Reference
+## Proxy behavior
 
-### Input
+The value returned by `parse`/`open` is read-only:
 
-| Form | Description |
-|------|-------------|
-| `<file>` | File (format auto-detected by contents) |
-| `-` | Read from stdin explicitly |
-| (no args, piped) | Read from stdin automatically |
-
-### Format
-
-| Flag | Description |
-|------|-------------|
-| `-j`, `--json` | Output as JSON |
-| `-r`, `--rexc` | Output as REXC |
-| `-t`, `--tree` | Output as tree (default on TTY) |
-| `-a`, `--ast` | Output encoding structure as JSON |
-| `--to json\|rexc\|tree\|ast` | Output format (long form) |
-
-Format is auto-detected from file extension (`.json`, `.rx`, `.rexc`) or by content sniffing on stdin. Both `.rx` and `.rexc` are recognized as REXC. Output defaults to tree view on a TTY, JSON when piped.
-
-### Filtering
-
-| Flag | Description |
-|------|-------------|
-| `-s`, `--select <seg>...` | Select a sub-value (e.g. `-s foo bar 0 baz`) |
-
-### Convert
-
-| Flag | Description |
-|------|-------------|
-| `-w`, `--write` | Write converted file (`.json`↔`.rx`) |
-
-### Output
-
-| Flag | Description |
-|------|-------------|
-| `-o`, `--out <path>` | Write to file instead of stdout |
-| `-c`, `--color` / `--no-color` | Force or disable ANSI color |
-| `-h`, `--help` | Show help message |
-
-### Tuning
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--index-threshold <n>` | 16 | Index objects/arrays above n values |
-| `--string-chain-threshold <n>` | 64 | Split strings longer than n into chains |
-| `--string-chain-delimiter <s>` | `/` | Delimiter for string chains |
-| `--key-complexity-threshold <n>` | 100 | Max object complexity for dedupe keys |
-
-### Shell completions
-
-```sh
-rx --completions setup [zsh|bash]    # install tab completions
-rx --completions zsh|bash            # print completion script to stdout
+```ts
+obj.newKey = 1;      // throws TypeError
+delete obj.key;      // throws TypeError
+"key" in obj;        // works (zero-alloc key search)
+obj.nested === obj.nested  // true (container Proxies are memoized)
 ```
 
-### Run without installing
+Escape hatch to the underlying buffer:
 
-```sh
-bun run rx data.rx                 # from repo root
+```ts
+import { handle } from "@creationix/rx";
+const h = handle(obj.nested);
+// h.data: Uint8Array, h.right: byte offset
 ```
 
-## Architecture
+## Base64 utilities
 
-See [rx-perf.md](rx-perf.md) for detailed design notes on the cursor API, Proxy wrapper internals, and performance characteristics.
+The internal variable-length base64 encoding is exported:
+
+```ts
+import { b64Stringify, b64Parse, b64Sizeof, toZigZag, fromZigZag } from "@creationix/rx";
+
+b64Stringify(255)  // "3V"
+b64Parse("3V")     // 255
+b64Sizeof(255)     // 2 (digits needed)
+toZigZag(-1)       // 1
+fromZigZag(1)      // -1
+```
+
+Alphabet: `0-9a-zA-Z-_` (URL-safe, no padding). Big-endian. Zero is an empty string.
+
+## More
+
+- [docs/rx-format.md](docs/rx-format.md) — format spec, grammar, and railroad diagrams
+- [rx-perf.md](rx-perf.md) — cursor API design, Proxy internals, allocation profile
+- [samples/](samples/) — example datasets with JSON/RX pairs
+- [rx.run](https://rx.run/) — live web viewer
 
 ## License
 
