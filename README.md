@@ -4,6 +4,13 @@
 
 RX is a read-only embedded store for JSON-shaped data. Encode once, then query the encoded document in place — no parsing, no object graph, no GC pressure. Think of it as no-SQL SQLite: unstructured data with database-style random access.
 
+```json
+JSON  {"name":"alice","scores":[10,20,30]}
+RX    +Y+E+k;6scores,6alice,5name,4:t
+```
+
+Data stays queryable in this compact form — no parsing step, just direct reads from the encoded bytes. 
+
 On a real 92 MB deployment manifest with 35,000 route keys:
 
 | | JSON | RX |
@@ -87,7 +94,7 @@ data.status  // 200
 
 The quick start above is tiny — JSON would be fine for it. RX pays off on larger data with sparse reads. Here's a site manifest (see [samples/](samples/) for full files):
 
-```jsonc
+```json
 // site-manifest.json — 15 routes, repeated structure, shared prefixes
 {
   "routes": {
