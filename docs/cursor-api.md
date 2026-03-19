@@ -69,4 +69,20 @@ readStr(c);                        // decode to JS string (1 allocation)
 | `read`, `findKey`, `seekChild`, `strEquals`, `strCompare`, `strHasPrefix`, `collectChildren`, `rawBytes` | 0 |
 | `readStr` | 1 string |
 
+## B64 varint utilities
+
+The variable-length base-64 integer encoding used internally by RX is also exported:
+
+```ts
+import { b64Stringify, b64Parse, b64Sizeof, toZigZag, fromZigZag } from "@creationix/rx";
+
+b64Stringify(255)  // "3V"
+b64Parse("3V")     // 255
+b64Sizeof(255)     // 2 (digits needed)
+toZigZag(-1)       // 1
+fromZigZag(1)      // -1
+```
+
+Alphabet: `0-9a-zA-Z-_` (URL-safe, no padding). Big-endian. Zero is an empty string.
+
 See [rx-perf.md](../rx-perf.md) for detailed design notes on the cursor internals, Proxy wrapper, and full allocation profile.

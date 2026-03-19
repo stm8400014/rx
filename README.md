@@ -279,22 +279,6 @@ const h = handle(obj.nested);
 // h.data: Uint8Array, h.right: byte offset
 ```
 
-## Base64 utilities
-
-The internal variable-length base64 encoding is exported:
-
-```ts
-import { b64Stringify, b64Parse, b64Sizeof, toZigZag, fromZigZag } from "@creationix/rx";
-
-b64Stringify(255)  // "3V"
-b64Parse("3V")     // 255
-b64Sizeof(255)     // 2 (digits needed)
-toZigZag(-1)       // 1
-fromZigZag(1)      // -1
-```
-
-Alphabet: `0-9a-zA-Z-_` (URL-safe, no padding). Big-endian. Zero is an empty string.
-
 ## More
 
 - [docs/rx-format.md](docs/rx-format.md) — format spec, grammar, and railroad diagrams
