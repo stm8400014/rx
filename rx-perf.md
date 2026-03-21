@@ -94,7 +94,7 @@ For objects without a schema, children alternate: key, value, key, value. Use tw
 
 ## Indexed Containers
 
-Containers with `ixWidth > 0` have a sorted index table embedded after the content. Each entry is a fixed-width b64 delta from the content boundary.
+Containers with `ixWidth > 0` have a sorted index table embedded to the right of the content. Each entry is a fixed-width b64 delta from the content boundary.
 
 - **`seekChild(c, container, index)`** — O(1) random access via the index table.
 - **`ixCount`** — number of entries.

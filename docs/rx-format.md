@@ -37,17 +37,17 @@ value = number | string | ref | list | map | pointer | chain ;
 
 ### Tags at a glance
 
-| Tag | Name | Layout | Description |
-|-----|------|--------|-------------|
-| **`+`** | Number | `+[b64 zigzag]` | Zigzag-decoded signed integer |
-| **`*`** | Decimal | `[base]+[b64 base]*[b64 exp]` | `base × 10^exp` |
-| **`,`** | String | `[UTF-8 bytes],[b64 length]` | Raw UTF-8, length in bytes |
-| **`'`** | Ref | `'[name]` | Built-in literal or external ref name |
-| **`;`** | List | `[children];[b64 content-size]` | Ordered child values |
-| **`:`** | Map | `[children]:[b64 content-size]` | Key/value pairs |
-| **`^`** | Pointer | `^[b64 delta]` | Backward delta to an earlier byte offset |
-| **`.`** | Chain | `[segments].[b64 content-size]` | Concatenated string segments |
-| **`#`** | Index | `[entries]#[b64 compound]` | Sorted lookup table for a container |
+| Tag     | Name    | Layout                          | Description                              |
+|---------|---------|---------------------------------|------------------------------------------|
+| **`+`** | Number  | `+[b64 zigzag]`                 | Zigzag-decoded signed integer            |
+| **`*`** | Decimal | `[base]+[b64 base]*[b64 exp]`   | `base × 10^exp`                          |
+| **`,`** | String  | `[UTF-8 bytes],[b64 length]`    | Raw UTF-8, length in bytes               |
+| **`'`** | Ref     | `'[name]`                       | Built-in literal or external ref name    |
+| **`;`** | List    | `[children];[b64 content-size]` | Ordered child values                     |
+| **`:`** | Map     | `[children]:[b64 content-size]` | Key/value pairs                          |
+| **`^`** | Pointer | `^[b64 delta]`                  | Backward delta to an earlier byte offset |
+| **`.`** | Chain   | `[segments].[b64 content-size]` | Concatenated string segments             |
+| **`#`** | Index   | `[entries]#[b64 compound]`      | Sorted lookup table for a container      |
 
 ---
 
@@ -87,11 +87,11 @@ A `varint` is zero or more `b64` digits in big-endian order. These are used for 
 
 | Decimal | Zigzag | B64 digits |
 |---------|--------|------------|
-| 0 | 0 | *(empty)* |
-| 1 | 2 | `2` |
-| -1 | 1 | `1` |
-| 42 | 84 | `1k` |
-| 255 | 510 | `7-` |
+| 0       | 0      | *(empty)*  |
+| 1       | 2      | `2`        |
+| -1      | 1      | `1`        |
+| 42      | 84     | `1k`       |
+| 255     | 510    | `7-`       |
 
 ---
 
@@ -109,18 +109,18 @@ Numbers are encoded as a zigzag signed integer base optionally combined with a z
 
 Special float values use refs instead: **`'inf`** (+Infinity), **`'nif`** (-Infinity), **`'nan`** (NaN).
 
-| JSON | RX | Base | Exp | Notes |
-|------|----|------|-----|-------|
-| `0` | `+` | 0 | — | zigzag(0) = empty |
-| `1` | `+2` | 1 | — | zigzag(1) = 2 |
-| `-1` | `+1` | -1 | — | zigzag(-1) = 1 |
-| `42` | `+1k` | 42 | — | zigzag(42) = 84 = `1k` |
-| `255` | `+7-` | 255 | — | zigzag(255) = 510 = `7-` |
-| `1000` | `+vg` | 1000 | — | small exp, folded into integer |
-| `3.14` | `+9Q*3` | 314 | -2 | 314 × 10⁻² |
-| `-0.5` | `+9*1` | -5 | -1 | -5 × 10⁻¹ |
-| `99.9` | `+ve*1` | 999 | -1 | 999 × 10⁻¹ |
-| `1000000` | `+2*c` | 1 | 6 | 1 × 10⁶ |
+| JSON      | RX      | Base | Exp | Notes                          |
+|-----------|---------|------|-----|--------------------------------|
+| `0`       | `+`     | 0    | —   | zigzag(0) = empty              |
+| `1`       | `+2`    | 1    | —   | zigzag(1) = 2                  |
+| `-1`      | `+1`    | -1   | —   | zigzag(-1) = 1                 |
+| `42`      | `+1k`   | 42   | —   | zigzag(42) = 84 = `1k`         |
+| `255`     | `+7-`   | 255  | —   | zigzag(255) = 510 = `7-`       |
+| `1000`    | `+vg`   | 1000 | —   | small exp, folded into integer |
+| `3.14`    | `+9Q*3` | 314  | -2  | 314 × 10⁻²                     |
+| `-0.5`    | `+9*1`  | -5   | -1  | -5 × 10⁻¹                      |
+| `99.9`    | `+ve*1` | 999  | -1  | 999 × 10⁻¹                     |
+| `1000000` | `+2*c`  | 1    | 6   | 1 × 10⁶                        |
 
 ### String — `,`
 
@@ -132,15 +132,15 @@ string = utf8_body , "," , varint ;
 
 The body contains raw UTF-8 bytes. The varint gives the **byte length** (not character count). Strings may contain any bytes including nulls and non-ASCII unicode.
 
-| JSON | RX | Bytes | Notes |
-|------|----|-------|-------|
-| `""` | `,` | 0 | empty string |
-| `"hi"` | `hi,2` | 2 | |
-| `"alice"` | `alice,5` | 5 | |
-| `"hello world"` | `hello world,b` | 11 | b64(11) = `b` |
-| `"café"` | `café,5` | 5 | `é` is 2 UTF-8 bytes |
-| `"🎉"` | `🎉,4` | 4 | emoji is 4 UTF-8 bytes |
-| `"🏴‍☠️"` | `🏴‍☠️,d` | 13 | ZWJ pirate flag: 🏴 + ZWJ + ☠ + VS16 |
+| JSON            | RX              | Bytes | Notes                                |
+|-----------------|-----------------|-------|--------------------------------------|
+| `""`            | `,`             | 0     | empty string                         |
+| `"hi"`          | `hi,2`          | 2     |                                      |
+| `"alice"`       | `alice,5`       | 5     |                                      |
+| `"hello world"` | `hello world,b` | 11    | b64(11) = `b`                        |
+| `"café"`        | `café,5`        | 5     | `é` is 2 UTF-8 bytes                 |
+| `"🎉"`          | `🎉,4`          | 4     | emoji is 4 UTF-8 bytes               |
+| `"🏴‍☠️"`          | `🏴‍☠️,d`          | 13    | ZWJ pirate flag: 🏴 + ZWJ + ☠ + VS16 |
 
 ### Ref — `'`
 
@@ -150,17 +150,17 @@ ref = "'" , ref_name ;
 
 ![ref railroad diagram](rr-ref.png)
 
-Refs are **unique among tags**: the bytes after `'` are not a numeric value but a *name* composed of b64 digits. The parser checks for built-in names first; non-built-in ref names refer to entries in an external dictionary agreed between encoder and decoder.
+Refs are **unique among tags**: the bytes to the right of `'` are not a numeric value but a *name* composed of b64 digits. The parser checks for built-in names first; non-built-in ref names refer to entries in an external dictionary agreed between encoder and decoder.
 
-| Value | RX | Name |
-|-------|----|------|
-| `true` | `'t` | `t` |
-| `false` | `'f` | `f` |
-| `null` | `'n` | `n` |
-| `undefined` | `'u` | `u` |
+| Value       | RX     | Name  |
+|-------------|--------|-------|
+| `true`      | `'t`   | `t`   |
+| `false`     | `'f`   | `f`   |
+| `null`      | `'n`   | `n`   |
+| `undefined` | `'u`   | `u`   |
 | `+Infinity` | `'inf` | `inf` |
 | `-Infinity` | `'nif` | `nif` |
-| `NaN` | `'nan` | `nan` |
+| `NaN`       | `'nan` | `nan` |
 
 ---
 
@@ -178,10 +178,10 @@ Children are written in reverse order so that right-to-left parsing yields them 
 
 Large lists may include an **index** between the last child and the `;` tag.
 
-| JSON | RX | Children (right-to-left parse order) |
-|------|----|--------------------------------------|
-| `[]` | `;` | *(none)* |
-| `[1,2,3]` | `+6+4+2;6` | `+2` → 3, `+4` → 2, `+6` → 1 |
+| JSON      | RX         | Children (right-to-left parse order) |
+|-----------|------------|--------------------------------------|
+| `[]`      | `;`        | *(none)*                             |
+| `[1,2,3]` | `+6+4+2;6` | `+2` → 3, `+4` → 2, `+6` → 1         |
 
 ### Map — `:`
 
@@ -193,10 +193,10 @@ Key/value pairs are written in reverse order so that right-to-left parsing yield
 
 Large maps may include an **index** and/or a **schema** between the last key-value pair and the `:` tag. When both are present, the schema is rightmost, followed by the index.
 
-| JSON | RX |
-|------|----|
-| `{}` | `:` |
-| `{"a":1,"b":2}` | `+4b,1+2a,1:a` |
+| JSON                                    | RX                                   |
+|-----------------------------------------|--------------------------------------|
+| `{}`                                    | `:`                                  |
+| `{"a":1,"b":2}`                         | `+4b,1+2a,1:a`                       |
 | `{"users":["alice","bob"],"version":3}` | `+6version,7bob,3alice,5;cusers,5:w` |
 
 ---
@@ -234,7 +234,7 @@ index_entry = b64 , { b64 } ;
 
 ![index railroad diagram](rr-index.png)
 
-An index is a **sorted lookup table** attached to a container (list or map). It appears inside the container body, between the content and the container's tag.
+An index is a lookup table attached to a container (list or map). It appears inside the container body, between the content and the container's tag.
 
 The compound varint packs two values:
 
@@ -245,12 +245,58 @@ compound = (count << 3) | (width - 1)
 - **Low 3 bits** → `width - 1` (digits per entry, supporting widths 1–8)
 - **Upper bits** → `count` (number of entries)
 
-Each entry is a fixed-width base64 number giving the backward delta from the index position to the corresponding child. For maps, entries point to keys and are **sorted in UTF-8 byte order**.
+Each entry is a fixed-width base64 number giving the backward delta from the container content boundary (the left edge of the index table) to the corresponding child's right edge. The base is shared by all entries; each delta is not relative to its own pointer position.
+
+- **Indexed Lists**: entries point to values in element order. `O(1)` lookup.
+
+  ```js
+  [1,2,3] // Sample array, encoded with forced indices.
+  ```
+
+  The index is `024#o`.  This is 3 pointers `[0,2,4]` and `#o` for the packed config `{width:1,count:3}`.
+
+  ```rx
+  +6+4+2024#o;b
+  ```
+
+  
+- **Indexed Maps**: entries point to keys, sorted in UTF-8 byte order. `O(log2 n)` lookup.
+
+  ```js
+  // Sample object, encoded with forced indices.
+  // Note the keys are not ordered.
+  {z:1,a:2,m:3} 
+  ```
+
+  The index is `5a0#o`.  This is 3 pointers `[5,10,0]` and the same `#o` packed index config.  Note the indexes are not in order. This is because the keys in the index are sorted for fast binary search lookup. But the values in the actual object body preserve original order.
+
+  ```rx
+  +6m,1+4a,1+2z,15a0#o:k
+  ```
+
+- **Schema maps**: keys are external, so index entries point to values like a list. O(1) value lookup + whatever cost the key lookup in the external schema is.
+
+  ```json
+  [{"z":1,"a":2,"m":3},{"z":4,"a":5,"m":6}]
+  ```
+
+  This was encoded with indices on all containers
+
+  - `0f#g` on the outer list.  Offsets `[0,15]` config `{count:2,width:1}`.
+  - `024#o^b` is pointer to right object with shared keys and index to local values list.
+  - `5a0#o` on the left object pointing to keys in sorted order.
+
+  ```rx
+  +cm,1+aa,1+8z,15a0#o:k+6+4+2024#o^b:d0f#g;F
+  ```
+
+  In this document, one map provides the key layout and the other map stores only values plus a schema pointer.
 
 **Indexes enable:**
 - **O(1) list access** — jump directly to the *N*th element
-- **O(log n) map key lookup** — binary search on sorted keys
-- **O(log n + m) prefix search** — find the first matching key, then scan forward
+- **O(log n) key lookup** on non-schema maps — binary search on sorted keys
+- **O(log n + m) prefix search** on non-schema maps — find the first matching key, then scan forward
+- **O(1) value access by position** on schema maps
 
 Without an index, list access and key lookup are O(n) linear scans.
 
@@ -262,18 +308,25 @@ Maps can store their keys **separately from their values** using a schema refere
 schema = pointer | ref ;
 ```
 
-A schema map stores only values in its content body. The schema node appears as the rightmost item inside the map (before any index). The parser identifies it by tag:
+A schema map stores only values in its content body. The schema node appears as the rightmost item inside the map (with the index, if present, farther to the left). The parser identifies it by tag:
 
 - **Pointer schema** (`^`) — points to another map or list whose keys become this map's keys
 - **Ref schema** (`'`) — names an external dictionary entry containing the key list
 
 The encoder detects shared key sets **automatically**. The first map with a given key set is encoded normally; subsequent maps with the same keys store only their values and a pointer back to the first map's key layout.
 
+Lookup cost for schema maps depends on the schema source:
+
+- If the schema points to an **indexed object**, key lookup in the schema is **O(log n)**.
+  Combined with indexed value access in the schema map (**O(1)**), total lookup remains **O(log n)**.
+- If the schema points to a **list of keys**, key lookup is **O(n)** (key order is not assumed sorted).
+  Combined with indexed value access in the schema map (**O(1)**), total lookup is **O(n)**.
+
 ### External refs
 
-Encoders and decoders can share an **external dictionary** of values. When a value matches a ref entry by identity, the encoder writes `'name` instead of the full value. The decoder looks up the name in the same dictionary to reconstruct the original value.
+Encoders and decoders can share an **external dictionary** of values. When a value matches a ref entry by structural equality, the encoder writes `'name` instead of embedding that value. The decoder looks up the name in the same dictionary to reconstruct the original value.
 
-Refs are not part of the JSON data model. They are an agreed-upon external table — useful for values that appear across multiple documents or are too expensive to embed repeatedly.
+Pointers already deduplicate repeated embedded values within a document. Refs are primarily for opaque external values that are not directly serializable in RX/JSON, while still allowing agreed dictionary-backed reconstruction. They are also useful for values shared across multiple documents when both sides use the same external dictionary.
 
 ---
 
@@ -287,26 +340,26 @@ Given this JSON:
 
 The RX encoding is:
 
-```
+```rx
 +6version,7bob,3alice,5;cusers,5:w
 ```
 
 Reading **right-to-left**:
 
-| Step | Bytes | Tag | B64 | Decoded |
-|------|-------|-----|-----|---------|
-| 1 | `:w` | `:` map | `w` = 32 | content is 32 bytes to the left |
-| 2 | `users,5` | `,` string | `5` = 5 | "users" — key₁ |
-| 3 | `;c` | `;` list | `c` = 12 | content is 12 bytes — value₁ |
-| 4 | `alice,5` | `,` string | `5` = 5 | "alice" — list element₁ |
-| 5 | `bob,3` | `,` string | `3` = 3 | "bob" — list element₂ |
-| 6 | `version,7` | `,` string | `7` = 7 | "version" — key₂ |
-| 7 | `+6` | `+` number | `6` | zigzag 6 → **3** — value₂ |
+| Step | Bytes       | B64      | Tag        | Decoded                      |
+|------|-------------|----------|------------|------------------------------|
+| 1    | `:w`        | `w` = 32 | `:` map    | content is 32 bytes wide     |
+| 2    | `users,5`   | `5` = 5  | `,` string | "users" — key₁               |
+| 3    | `;c`        | `c` = 12 | `;` list   | content is 12 bytes — value₁ |
+| 4    | `alice,5`   | `5` = 5  | `,` string | "alice" — list element₁      |
+| 5    | `bob,3`     | `3` = 3  | `,` string | "bob" — list element₂        |
+| 6    | `version,7` | `7` = 7  | `,` string | "version" — key₂             |
+| 7    | `+6`        | `6` = 6  | `+` number | 6 → zigzag **3** — value₂    |
 
 ---
 
 ## Versioning
 
-This document describes the current encoding used by `@creationix/rx`. The format originated as the internal bytecode for *rex* (a DSL for HTTP routing), which is why pointers, chains, and indexing are first-class concepts.
+This document describes the current encoding used by `@creationix/rx`. The format originated as the internal bytecode for *rex* (a DSL for HTTP routing). Pointers, chains, and indexing are first-class concepts because the design prioritizes small encoded size and random access.
 
 Future versions may add new tags or encoding features. The **tag character set** and **right-to-left reading direction** are stable.
