@@ -184,6 +184,18 @@ When encoded to RX, this looks like:
 ╰──────── value 3 as zigzag integer
 ```
 
+If we configure the encoder to force indexes for short values, it encodes like this:
+
+```rx
++6+4+2024#o;b
+├╯├╯├╯╰┬╯├╯╰┴─ header for 6 byte list
+│ │ │  │ ╰──── index count=3, width=1
+│ │ │  ╰────── 3 pointers [0, 2, 4]
+│ │ ╰───────── value 1 as zigzag integer
+│ ╰─────────── value 2 as zigzag integer
+╰───────────── value 3 as zigzag integer
+```
+
 ### Map — `:`
 
 ```ebnf
