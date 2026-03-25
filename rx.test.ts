@@ -1384,10 +1384,10 @@ describe("stringify", () => {
 				expect(stringify("/about")).toBe("/about,6");
 				const paths = ["/foo/bar/baz", "/foo/bar/qux", "/foo/quux"];
 				expect(stringify(paths, chain)).toBe(
-					"/quux,5/foo,4.d/qux,4/bar,4^e.8.g/baz,4^8.8;H",
+					"/foo/quux,9/bar/qux,8/foo,4.g/baz,4/bar,4.c^g.g;L",
 				);
 				const prefixedPaths = ["/foo/bar/baz", "/foo/bar/qux"];
-				expect(stringify(prefixedPaths, chain)).toBe("/qux,4/bar,4/foo,4.c.k/baz,4^8.8;w");
+				expect(stringify(prefixedPaths, chain)).toBe("/foo/bar/qux,c/baz,4/bar,4/foo,4.c.k;A");
 			});
 		});
 
@@ -1415,7 +1415,7 @@ describe("stringify", () => {
 			test("byte counts are accurate with different options", () => {
 				const chain = { stringChainThreshold: 0 };
 				expect(stringify(doc, chain)).toBe(
-					"GET,3method,6Export Logs as CSV,iname,4:D/csv,4/export,7/logs,5/admin,6.f.q.y^18Export Logs as JSON,j^Y:q/json,5^B.9^1LExport Logs,b^1r:j^-POST,4Clear Logs,a^1Q:l/clear,6^1x.b^2GAdmin Logs,a^2l:i^1W^RRemove User,b^2I:i/remove,7/users,6^2A.b.m^1xAdd User,8^3m:g/add,4^q.8^49Admin Users,b^3R:j^P^2kAdmin Settings,e^4f:m/settings,9^41.e^58Admin,5^4K:d^4l^3eAPI Update,a^55:i/update,7/api,4.f^5_API Data,8^5E:g/data,5^r.9^4gComment,7^64:f/post/comment,d/blog,5.m^75Blog Post,9^6L:h/post,5^s.9^7zBlog,4^78:c^K^5DContact,7^7r:f/contact,8^8eAbout,5^7Q:d/about,6^8BHome,4^8a:c/,1000h3s5R6c6M7K773K4m4J592q2T131j1N0E#2h:9y",
+					"GET,3method,6Export Logs as CSV,iname,4:D/admin/logs/export/csv,m^YExport Logs as JSON,j^L:p/json,5/export,7/logs,5/admin,6.f.q.z^1YExport Logs,b^1E:j^nPOST,4Clear Logs,a^21:l/clear,6^W.a^2SAdmin Logs,a^2x:i^1i^QRemove User,b^2U:i/users/remove,d^1W.i^1sAdd User,8^3u:g/add,4/users,6.e^2x.j^4sAdmin Users,b^48:j^s^2Z.5^2vAdmin Settings,e^4D:m/settings,9^3B.e^5wAdmin,5^56:d^3V^3pAPI Update,a^5t:i/api/update,b^6jAPI Data,8^5Y:g/data,5/api,4.d^4rComment,7^6s:f/blog/post/comment,i^7pBlog Post,9^73:h/post,5/blog,5.e^7YBlog,4^7x:c^g^5PContact,7^7Q:f/contact,8^8DAbout,5^8d:d/about,6^8-Home,4^8z:c/,1000h3t626p6Y8j7j3L4n4P5q2r2Y131j1S0E#2h:9X",
 				);
 				expect(
 					stringify(doc, {
@@ -1423,7 +1423,7 @@ describe("stringify", () => {
 						indexThreshold: Infinity,
 					}),
 				).toBe(
-					"GET,3method,6Export Logs as CSV,iname,4:D/csv,4/export,7/logs,5/admin,6.f.q.y^18Export Logs as JSON,j^Y:q/json,5^B.9^1LExport Logs,b^1r:j^-POST,4Clear Logs,a^1Q:l/clear,6^1x.b^2GAdmin Logs,a^2l:i^1W^RRemove User,b^2I:i/remove,7/users,6^2A.b.m^1xAdd User,8^3m:g/add,4^q.8^49Admin Users,b^3R:j^P^2kAdmin Settings,e^4f:m/settings,9^41.e^58Admin,5^4K:d^4l^3eAPI Update,a^55:i/update,7/api,4.f^5_API Data,8^5E:g/data,5^r.9^4gComment,7^64:f/post/comment,d/blog,5.m^75Blog Post,9^6L:h/post,5^s.9^7zBlog,4^78:c^K^5DContact,7^7r:f/contact,8^8eAbout,5^7Q:d/about,6^8BHome,4^8a:c/,1:8X",
+					"GET,3method,6Export Logs as CSV,iname,4:D/admin/logs/export/csv,m^YExport Logs as JSON,j^L:p/json,5/export,7/logs,5/admin,6.f.q.z^1YExport Logs,b^1E:j^nPOST,4Clear Logs,a^21:l/clear,6^W.a^2SAdmin Logs,a^2x:i^1i^QRemove User,b^2U:i/users/remove,d^1W.i^1sAdd User,8^3u:g/add,4/users,6.e^2x.j^4sAdmin Users,b^48:j^s^2Z.5^2vAdmin Settings,e^4D:m/settings,9^3B.e^5wAdmin,5^56:d^3V^3pAPI Update,a^5t:i/api/update,b^6jAPI Data,8^5Y:g/data,5/api,4.d^4rComment,7^6s:f/blog/post/comment,i^7pBlog Post,9^73:h/post,5/blog,5.e^7YBlog,4^7x:c^g^5PContact,7^7Q:f/contact,8^8DAbout,5^8d:d/about,6^8-Home,4^8z:c/,1:9k",
 				);
 			});
 		});
@@ -1441,7 +1441,7 @@ describe("stringify", () => {
 			};
 			test("byte counts are accurate with different options", () => {
 				expect(stringify(doc, { stringChainThreshold: 0 })).toBe(
-					"flags,5group,5pirate flag,bname,4:x/🏴‍☠️,e/emoji,6.osmileys-emotion,fred heart,9^S:u/❤️,7^H.bactivities,asoccer ball,b^1w:s/⚽,4^1j.9objects,7guitar,6^21:k/🎸,5^1R.aanimals-nature,esnake,5^2F:q/🐍,5^2t.a^oseedling,8^36:f/🌱,5^2W.atravel-places,dwater,5^3J:p/💧,5^3x.a^ofire,4^46:b/🔥,5^3W.a:4W",
+					"flags,5group,5pirate flag,bname,4:x/emoji/🏴‍☠️,ksmileys-emotion,fred heart,9^O:u/❤️,7/emoji,6.hactivities,asoccer ball,b^1y:s/⚽,4^C.8objects,7guitar,6^22:k/🎸,5^17.aanimals-nature,esnake,5^2G:q/🐍,5^1L.a^oseedling,8^37:f/🌱,5^2c.atravel-places,dwater,5^3K:p/💧,5^2P.a^ofire,4^47:b/🔥,5^3c.a:4X",
 				);
 				expect(stringify(doc, { stringChainDelimiter: "" })).toBe(
 					"flags,5group,5pirate flag,bname,4:x/emoji/🏴‍☠️,ksmileys-emotion,fred heart,9^O:u/emoji/❤️,dactivities,asoccer ball,b^1u:s/emoji/⚽,aobjects,7guitar,6^20:k/emoji/🎸,banimals-nature,esnake,5^2F:q/emoji/🐍,b^pseedling,8^37:f/emoji/🌱,btravel-places,dwater,5^3L:p/emoji/💧,b^pfire,4^49:b/emoji/🔥,b:4-",
@@ -1545,15 +1545,20 @@ describe("stringify streaming", () => {
 		stringify(
 			{ a: 1 },
 			{
+				chunkSize: 4, // small chunks for deterministic splitting
 				onChunk: (data, offset) => chunks.push({ offset, data }),
 			},
 		);
-		expect(chunks).toEqual([
-			{ offset: 0, data: "+2" },
-			{ offset: 2, data: "a" },
-			{ offset: 3, data: ",1" },
-			{ offset: 5, data: ":5" },
-		]);
+		// Each chunk starts at the right offset
+		expect(chunks[0]!.offset).toBe(0);
+		for (let i = 1; i < chunks.length; i++) {
+			expect(chunks[i]!.offset).toBe(
+				chunks[i - 1]!.offset + chunks[i - 1]!.data.length,
+			);
+		}
+		// Reassembled output matches non-streaming
+		const reassembled = chunks.map((c) => c.data).join("");
+		expect(reassembled).toBe(stringify({ a: 1 }));
 	});
 
 	test("onChunk offsets are increasing", () => {

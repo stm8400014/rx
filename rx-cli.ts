@@ -2,7 +2,7 @@ import {
 	open, inspect, stringify, encode,
 	makeCursor, read,
 	tune,
-	INDEX_THRESHOLD, STRING_CHAIN_THRESHOLD, STRING_CHAIN_DELIMITER, KEY_COMPLEXITY_THRESHOLD
+	INDEX_THRESHOLD, STRING_CHAIN_THRESHOLD, STRING_CHAIN_DELIMITER, DEDUP_COMPLEXITY_LIMIT
 } from "./rx.ts";
 import { readdirSync } from "node:fs";
 import { readFile, writeFile, mkdir, unlink, lstat } from "node:fs/promises";
@@ -72,7 +72,7 @@ type RxOptions = {
 	indexThreshold?: number;
 	stringChainThreshold?: number;
 	stringChainDelimiter?: string;
-	keyComplexityThreshold?: number;
+	dedupComplexityLimit?: number;
 };
 
 function parseArgs(argv: string[]): RxOptions {
@@ -135,15 +135,15 @@ function parseArgs(argv: string[]): RxOptions {
 			opts.stringChainDelimiter = v;
 			continue;
 		}
-		if (arg === "--key-complexity-threshold") {
+		if (arg === "--dedup-complexity-limit") {
 			const v = argv[++i];
-			if (!v) throw new Error("Missing value for --key-complexity-threshold");
+			if (!v) throw new Error("Missing value for --dedup-complexity-limit");
 			const n = Number(v);
-			if (!Number.isInteger(n) || n < 0) throw new Error("--key-complexity-threshold must be a non-negative integer");
-			opts.keyComplexityThreshold = n;
+			if (!Number.isInteger(n) || n < 0) throw new Error("--dedup-complexity-limit must be a non-negative integer");
+			opts.dedupComplexityLimit = n;
 			continue;
 		}
-		if (!arg.startsWith("-") || arg === "-") {
+if (!arg.startsWith("-") || arg === "-") {
 			opts.files.push(arg);
 			continue;
 		}
@@ -190,7 +190,7 @@ function usage(): string {
 		`  ${tCmd}--index-threshold${tR} ${tArg}<n>${tR}              ${tDesc}Index objects/arrays above n values${tR} ${tDim}(default: ${INDEX_THRESHOLD})${tR}`,
 		`  ${tCmd}--string-chain-threshold${tR} ${tArg}<n>${tR}       ${tDesc}Split strings longer than n into chains${tR} ${tDim}(default: ${STRING_CHAIN_THRESHOLD})${tR}`,
 		`  ${tCmd}--string-chain-delimiter${tR} ${tArg}<s>${tR}       ${tDesc}Delimiter for string chains${tR} ${tDim}(default: ${STRING_CHAIN_DELIMITER})${tR}`,
-		`  ${tCmd}--key-complexity-threshold${tR} ${tArg}<n>${tR}     ${tDesc}Max object complexity for dedupe keys${tR} ${tDim}(default: ${KEY_COMPLEXITY_THRESHOLD})${tR}`,
+		`  ${tCmd}--dedup-complexity-limit${tR} ${tArg}<n>${tR}      ${tDesc}Max node count for structural dedup${tR} ${tDim}(default: ${DEDUP_COMPLEXITY_LIMIT})${tR}`,
 		"",
 		`${tH2}Shell completions:${tR}`,
 		`  ${tCmd}rx --completions setup${tR} ${tArg}[zsh|bash]${tR}  ${tDesc}Install tab completions${tR}`,
@@ -508,10 +508,10 @@ function formatOutput(value: unknown, format: OutputFormat, color: boolean, rexc
 
 // ── Shell completions ────────────────────────────────────────
 
-const FLAGS_WITH_VALUE = new Set(["-o", "--out", "--to", "--index-threshold", "--string-chain-threshold", "--string-chain-delimiter", "--key-complexity-threshold"]);
+const FLAGS_WITH_VALUE = new Set(["-o", "--out", "--to", "--index-threshold", "--string-chain-threshold", "--string-chain-delimiter", "--dedup-complexity-limit"]);
 const ALL_FLAGS = ["-h", "--help", "-w", "--write", "-j", "--json", "-r", "--rexc", "-t", "--tree", "-a", "--ast",
 	"--to", "-s", "--select", "-o", "--out", "-c", "--color", "--no-color",
-	"--index-threshold", "--string-chain-threshold", "--string-chain-delimiter", "--key-complexity-threshold"];
+	"--index-threshold", "--string-chain-threshold", "--string-chain-delimiter", "--dedup-complexity-limit"];
 const DATA_EXTENSIONS = [".json", ".rexc", ".rx"];
 
 function findSelectIndex(words: string[]): number {
@@ -785,7 +785,7 @@ async function main() {
 		indexThreshold: opts.indexThreshold,
 		stringChainThreshold: opts.stringChainThreshold,
 		stringChainDelimiter: opts.stringChainDelimiter,
-		keyComplexityThreshold: opts.keyComplexityThreshold,
+		dedupComplexityLimit: opts.dedupComplexityLimit,
 	});
 
 	const { value: parsed, rexcBytes } = await readInput(opts);
